@@ -39,6 +39,7 @@ const lastText = Symbol('lastText')
 const inputCnt = Symbol('inputCnt')
 const initialized = Symbol('initialized')
 const config = Symbol('config')
+let onInputTimerID;
 
 class FindInPage extends Find{
   constructor (webContents, options = {}) {
@@ -130,6 +131,12 @@ class FindInPage extends Find{
     unbindEvents.call(this)
     this.closeFindWindow()
     removeElement.call(this)
+  }
+  clearInput () {
+	this[findInput].value = ''
+    this[action] = ''
+    this[lastText] = ''
+    this[findMatches].innerText = '0/0'
   }
 }
 
@@ -377,19 +384,26 @@ function unwrapInput (inputEle, caseEle) {
 function onInput () {
   setTimeout(() => {
     if (this[inComposition]) return
-    this[action] = 'input'
-    let text = this[findInput].value
-    if (text && text !== this[lastText]) {
-      this[lastText] = text
-      wrapInput(this[findInput], this[findCase], 100)
-      this.startFind(text, true, this[matchCase])
-    } else if (this[lastText] && text === '') {
-      this.stopFind()
-      this[findMatches].innerText = '0/0'
-      lockNext.call(this)
-      focusInput.call(this, true)
-    }
+	let text = this[findInput].value
+	let timeout = text.length < 3 ? 2500 : 300;
+	this.onInputTimerID = setTimeout(() => {
+	  processInput(text);
+	}, timeout)
   }, 50)
+}
+
+function processInput (text) {
+  this[action] = 'input'
+  if (text && text !== this[lastText]) {
+    this[lastText] = text
+    wrapInput(this[findInput], this[findCase], 100)
+    this.startFind(text, true, this[matchCase])
+  } else if (this[lastText] && text === '') {
+    this.stopFind()
+    this[findMatches].innerText = '0/0'
+    lockNext.call(this)
+    focusInput.call(this, true)
+  }
 }
 
 function onKeydown (e) {
